@@ -67,7 +67,7 @@ jobs:
         run: |
           cd claude-code/multi-file-refactor/CRM-Assistant
           source .venv/bin/activate
-          python scripts/crm_assistant.py run-merge-policy-tests
+          PYTHONPATH=.. python scripts/crm_assistant.py run-merge-policy-tests
 
   scan-secrets:
     name: Secret Scanning

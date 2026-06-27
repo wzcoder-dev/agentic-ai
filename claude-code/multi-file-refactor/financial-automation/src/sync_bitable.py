@@ -2,10 +2,15 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from common.feishu import FeishuApiError, FeishuClient
+
+# 飞书多维表格日期字段按「北京时间」(UTC+8) 当天 00:00 记毫秒时间戳。
+# 显式固定时区，避免依赖运行机器的本地时区——CI 跑在 UTC 上，若用 naive
+# datetime.timestamp() 会比本地（CST）晚 8 小时，导致日期整体偏移。
+_BEIJING_TZ = timezone(timedelta(hours=8))
 
 
 EXPENSE_TYPE_LABELS = {
@@ -328,7 +333,9 @@ def _date_to_millis(value: Any) -> int | None:
         dt = datetime.fromisoformat(str(value))
     except ValueError:
         return None
-    return int(dt.timestamp() * 1000)
+    # naive 日期按北京时间解释；若输入已带时区则尊重原时区。
+    aware = dt if dt.tzinfo else dt.replace(tzinfo=_BEIJING_TZ)
+    return int(aware.timestamp() * 1000)
 
 
 def _join_review_reasons(reasons: Any) -> str:
