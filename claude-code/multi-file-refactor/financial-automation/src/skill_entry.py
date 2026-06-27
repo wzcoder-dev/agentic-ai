@@ -9,7 +9,6 @@ try:
     from .bitable_attachment_uploader import (
         build_attachment_field_value,
         build_bitable_attachment_upload_request,
-        load_user_access_token,
         perform_bitable_attachment_upload,
     )
     from .bitable_session_writer import choose_bitable_write_action
@@ -19,12 +18,13 @@ except ImportError:  # pragma: no cover - supports running as a script.
     from bitable_attachment_uploader import (
         build_attachment_field_value,
         build_bitable_attachment_upload_request,
-        load_user_access_token,
         perform_bitable_attachment_upload,
     )
     from bitable_session_writer import choose_bitable_write_action
     from main import DEFAULT_CONFIG_PATH, load_app_config, run_pipeline
     from sync_bitable import sync_skill_result_with_config
+
+from common.feishu.auth import load_user_access_token
 
 
 SUPPORTED_SKILL_EXTENSIONS = {".pdf", ".jpg", ".jpeg", ".png"}

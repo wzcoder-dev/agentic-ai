@@ -8,19 +8,24 @@ from urllib import error, request
 from .errors import FeishuApiError
 
 
+def get_json(url: str, *, headers: dict[str, str] | None = None, timeout: float = 60) -> dict[str, Any]:
+    """GET ``url`` and return the parsed JSON response."""
+    req = request.Request(url, headers=headers or {}, method="GET")
+    return _read_json_response(req, timeout=timeout)
+
+
 def post_json(
     url: str,
     payload: dict[str, Any],
+    *,
     headers: dict[str, str] | None = None,
+    timeout: float = 60,
 ) -> dict[str, Any]:
-    """Send a POST request with JSON body and return parsed JSON response."""
+    """POST ``payload`` as JSON and return the parsed JSON response."""
     body = json.dumps(payload).encode("utf-8")
-    merged_headers = {
-        "Content-Type": "application/json; charset=utf-8",
-        **(headers or {}),
-    }
+    merged_headers = {"Content-Type": "application/json; charset=utf-8", **(headers or {})}
     req = request.Request(url, data=body, headers=merged_headers, method="POST")
-    return _read_json_response(req)
+    return _read_json_response(req, timeout=timeout)
 
 
 def post_multipart(
@@ -32,16 +37,15 @@ def post_multipart(
     file_bytes: bytes,
     content_type: str,
     headers: dict[str, str] | None = None,
+    timeout: float = 60,
 ) -> dict[str, Any]:
-    """Send a POST request with multipart/form-data for file uploads."""
+    """POST ``file_bytes`` as ``multipart/form-data`` and return parsed JSON."""
     boundary = f"----OpenClawBoundary{uuid.uuid4().hex}"
     body = bytearray()
 
     for key, value in fields.items():
         body.extend(f"--{boundary}\r\n".encode("utf-8"))
-        body.extend(
-            f'Content-Disposition: form-data; name="{key}"\r\n\r\n'.encode("utf-8")
-        )
+        body.extend(f'Content-Disposition: form-data; name="{key}"\r\n\r\n'.encode("utf-8"))
         body.extend(str(value).encode("utf-8"))
         body.extend(b"\r\n")
 
@@ -57,18 +61,15 @@ def post_multipart(
     body.extend(b"\r\n")
     body.extend(f"--{boundary}--\r\n".encode("utf-8"))
 
-    merged_headers = {
-        "Content-Type": f"multipart/form-data; boundary={boundary}",
-        **(headers or {}),
-    }
+    merged_headers = {"Content-Type": f"multipart/form-data; boundary={boundary}", **(headers or {})}
     req = request.Request(url, data=bytes(body), headers=merged_headers, method="POST")
-    return _read_json_response(req)
+    return _read_json_response(req, timeout=timeout)
 
 
-def _read_json_response(req: request.Request) -> dict[str, Any]:
-    """Read and parse a JSON response from Feishu API, handling errors."""
+def _read_json_response(req: request.Request, *, timeout: float = 60) -> dict[str, Any]:
+    """Read ``req``, decode JSON, and raise :class:`FeishuApiError` on non-zero code."""
     try:
-        with request.urlopen(req, timeout=60) as response:
+        with request.urlopen(req, timeout=timeout) as response:
             raw_body = response.read().decode("utf-8")
     except error.HTTPError as exc:
         body = exc.read().decode("utf-8", errors="replace")

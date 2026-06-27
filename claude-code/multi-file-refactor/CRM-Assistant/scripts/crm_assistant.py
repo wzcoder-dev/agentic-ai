@@ -9,18 +9,9 @@ from collections import OrderedDict
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
-from urllib import parse
+from common.feishu import FeishuClient
 from xml.etree import ElementTree as ET
 from zipfile import ZipFile
-
-# Add parent common directory to path
-COMMON_DIR = Path(__file__).parent.parent.parent / "common"
-import sys
-
-sys.path.insert(0, str(COMMON_DIR))
-
-from feishu.client import FeishuClient
-from feishu.bitable import coerce_field_value, coerce_row
 
 
 VALID_INTENT_LEVELS = ["low", "medium", "high"]
@@ -884,19 +875,6 @@ def resolve_feishu_value(cli_value: str | None, config: dict[str, Any] | None, c
     return None
 
 
-def build_url(base_url: str, query: dict[str, Any] | None = None) -> str:
-    if not query:
-        return base_url
-    normalized: dict[str, Any] = {}
-    for key, value in query.items():
-        if value is None:
-            continue
-        normalized[key] = value
-    if not normalized:
-        return base_url
-    return f"{base_url}?{parse.urlencode(normalized)}"
-
-
 def map_row_fields(row: dict[str, Any], field_mapping: dict[str, Any] | None = None) -> OrderedDict[str, Any]:
     mapped = OrderedDict()
     mapping = field_mapping or {}
@@ -909,6 +887,45 @@ def map_row_fields(row: dict[str, Any], field_mapping: dict[str, Any] | None = N
             continue
         mapped[target_text] = value
     return mapped
+
+
+def coerce_bitable_field_value(value: Any, field_meta: dict[str, Any] | None) -> Any:
+    if field_meta is None:
+        return value
+    field_type = int(get_object_value(field_meta, "type", 0) or 0)
+    if value is None:
+        return None
+    if field_type == 5:
+        if isinstance(value, (int, float)):
+            return int(value)
+        parsed = parse_datetime(value)
+        if parsed is not None:
+            return int(parsed.timestamp() * 1000)
+        return value
+    if field_type == 7:
+        if isinstance(value, bool):
+            return value
+        text = str(value).strip().lower()
+        return text in {"true", "1", "yes", "y", "是"}
+    if field_type == 2:
+        if isinstance(value, (int, float)):
+            return value
+        text = str(value).strip()
+        if not text:
+            return None
+        try:
+            return int(text) if re.fullmatch(r"-?\d+", text) else float(text)
+        except ValueError:
+            return value
+    return value
+
+
+def coerce_row_for_bitable(row: dict[str, Any], fields_meta: list[dict[str, Any]]) -> OrderedDict[str, Any]:
+    fields_by_name = {str(item.get("field_name") or "").strip(): item for item in fields_meta or []}
+    coerced = OrderedDict()
+    for field_name, value in row.items():
+        coerced[field_name] = coerce_bitable_field_value(value, fields_by_name.get(str(field_name).strip()))
+    return coerced
 
 
 def normalize_existing_bitable_fields(fields: dict[str, Any], fields_meta: list[dict[str, Any]]) -> OrderedDict[str, Any]:
@@ -1223,7 +1240,7 @@ def sync_crm_packet_to_feishu(
             row_name = row.get("客户名称")
             row_company = row.get("客户公司")
             existing_record = find_feishu_record_by_customer_identity(existing_records, row_id, row_name, row_company)
-            coerced_row = coerce_row(row, customer_fields_meta)
+            coerced_row = coerce_row_for_bitable(row, customer_fields_meta)
             if existing_record is None:
                 customer_response = client.bitable_batch_create(
                     resolved_app_token,
@@ -1247,7 +1264,7 @@ def sync_crm_packet_to_feishu(
                     effective_customer_row.get("价格敏感程度"),
                     effective_customer_row.get("风险顾虑"),
                 )
-                effective_customer_row = coerce_row(effective_customer_row, customer_fields_meta)
+                effective_customer_row = coerce_row_for_bitable(effective_customer_row, customer_fields_meta)
                 customer_response = client.bitable_batch_update(
                     resolved_app_token,
                     str(resolved_customer_table_id),
@@ -1277,7 +1294,7 @@ def sync_crm_packet_to_feishu(
             opportunity_row.get("机会名称"),
             opportunity_row.get("客户公司"),
         )
-        coerced_opportunity_row = coerce_row(opportunity_row, opportunity_fields_meta)
+        coerced_opportunity_row = coerce_row_for_bitable(opportunity_row, opportunity_fields_meta)
         if existing_opportunity_record is None:
             opportunity_response = client.bitable_batch_create(
                 resolved_app_token,
@@ -2382,6 +2399,122 @@ def run_merge_policy_tests() -> None:
     print("[PASS] opportunity identity is stable across meeting-stage titles")
 
 
+def run_sync_mock_tests() -> None:
+    """Mock FeishuClient and exercise sync_crm_packet_to_feishu's write path
+    (customer upsert, opportunity append, merge-preserve, dry-run) with no
+    network. Regression guard for the shared FeishuClient migration."""
+    import sys
+    import tempfile
+    from unittest import mock
+
+    module = sys.modules[__name__]
+
+    crm_packet = {
+        "customer_table_rows": [
+            {"客户ID": "C1", "客户名称": "张三", "客户公司": "ACME", "MBTI": "ENTP"},
+            {
+                "客户ID": "C2",
+                "客户名称": "李四",
+                "客户公司": "Beta",
+                "MBTI": "未明确",
+                "是否单身": "是",
+                "沟通风格": "偏好微信",
+                "成交阻力": "价格",
+                "价格敏感程度": "中",
+                "风险顾虑": "交付",
+            },
+        ],
+        "opportunity_snapshot_row": {"商机ID": "O1", "机会名称": "龙虾盒子", "客户公司": "ACME"},
+    }
+    existing_customer_records = [
+        {"record_id": "recC2", "fields": {"客户ID": "C2", "客户名称": "李四", "客户公司": "Beta", "MBTI": "INTJ"}}
+    ]
+
+    fake_client = mock.MagicMock()
+    fake_client.bitable_list_fields.return_value = []
+    fake_client.bitable_list_records.side_effect = lambda app_token, table_id: (
+        list(existing_customer_records) if table_id == "tblC" else []
+    )
+    fake_client.bitable_batch_create.return_value = {"total": 1, "records": [{"record_id": "newRec"}]}
+    fake_client.bitable_batch_update.return_value = {"total": 1, "records": [{"record_id": "recC2"}]}
+
+    errors: list[str] = []
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        tmp = Path(tmp_dir)
+        packet_path = tmp / "crm_packet.json"
+        packet_path.write_text(json.dumps(crm_packet, ensure_ascii=False), encoding="utf-8")
+
+        with mock.patch.object(module, "FeishuClient", mock.MagicMock(return_value=fake_client)):
+            report = sync_crm_packet_to_feishu(
+                packet_path,
+                tmp,
+                app_id="x",
+                app_secret="y",
+                app_token_or_url="tok",
+                customer_table_id="tblC",
+                opportunity_table_id="tblO",
+                dry_run=False,
+            )
+
+        create_calls = fake_client.bitable_batch_create.call_args_list
+        update_calls = fake_client.bitable_batch_update.call_args_list
+
+        if len(create_calls) != 2:
+            errors.append(f"expected 2 batch_create calls (new customer + opportunity), got {len(create_calls)}")
+        if len(update_calls) != 1:
+            errors.append(f"expected 1 batch_update call (existing customer), got {len(update_calls)}")
+
+        cust_create = next((c for c in create_calls if c.args[1] == "tblC"), None)
+        opp_create = next((c for c in create_calls if c.args[1] == "tblO"), None)
+        if cust_create is None:
+            errors.append("missing customer batch_create on tblC")
+        elif cust_create.args[2][0]["fields"].get("客户ID") != "C1":
+            errors.append("customer create should carry 客户ID=C1")
+        if opp_create is None:
+            errors.append("missing opportunity batch_create on tblO")
+        elif opp_create.args[2][0]["fields"].get("商机ID") != "O1":
+            errors.append("opportunity create should carry 商机ID=O1")
+
+        if update_calls:
+            update_call = update_calls[0]
+            if update_call.args[1] != "tblC":
+                errors.append("customer update should target tblC")
+            record = update_call.args[2][0]
+            if record.get("record_id") != "recC2":
+                errors.append(f"customer update record_id expected recC2, got {record.get('record_id')}")
+            if record.get("fields", {}).get("MBTI") != "INTJ":
+                errors.append(f"merge should preserve existing MBTI=INTJ, got {record.get('fields', {}).get('MBTI')}")
+
+        if report.get("customer_actions") != ["created", "updated"]:
+            errors.append(f"customer_actions expected ['created','updated'], got {report.get('customer_actions')}")
+        if report.get("opportunity_action") != "created":
+            errors.append(f"opportunity_action expected 'created', got {report.get('opportunity_action')}")
+
+        dry_factory = mock.MagicMock(return_value=mock.MagicMock())
+        with mock.patch.object(module, "FeishuClient", dry_factory):
+            dry_report = sync_crm_packet_to_feishu(
+                packet_path,
+                tmp,
+                app_id="x",
+                app_secret="y",
+                app_token_or_url="tok",
+                customer_table_id="tblC",
+                opportunity_table_id="tblO",
+                dry_run=True,
+            )
+        if dry_factory.called:
+            errors.append("dry_run must not construct FeishuClient")
+        if dry_report.get("customer_action") != "preview_only" or dry_report.get("opportunity_action") != "preview_only":
+            errors.append("dry_run actions should be preview_only")
+
+    if errors:
+        for err in errors:
+            print(f"[FAIL] {err}")
+        raise RuntimeError(f"{len(errors)} sync mock assertion(s) failed.")
+    print("[PASS] new customer -> batch_create; existing customer -> batch_update preserving strong fields")
+    print("[PASS] opportunity appended via batch_create; dry_run issues no API calls")
+
+
 def run_model_output_tests(output_root: str | Path) -> None:
     model_dir = skill_root() / "runtime" / "llm_outputs"
     sample_dir = skill_root() / "assets" / "samples"
@@ -2559,6 +2692,8 @@ def build_parser() -> argparse.ArgumentParser:
 
     sub.add_parser("run-merge-policy-tests")
 
+    sub.add_parser("run-sync-mock-tests")
+
     p = sub.add_parser("run-customer-journey")
     p.add_argument("--manifest-path", required=True)
     p.add_argument("--output-dir", required=True)
@@ -2665,6 +2800,9 @@ def main() -> None:
     elif args.command == "run-merge-policy-tests":
         run_merge_policy_tests()
         print("All merge policy tests passed.")
+    elif args.command == "run-sync-mock-tests":
+        run_sync_mock_tests()
+        print("All sync mock tests passed.")
     elif args.command == "run-customer-journey":
         run_customer_journey(args.manifest_path, args.output_dir)
         print(f"Customer journey generated at: {args.output_dir}")

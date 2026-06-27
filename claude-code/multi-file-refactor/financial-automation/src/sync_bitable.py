@@ -1,18 +1,16 @@
 from __future__ import annotations
 
 import os
-import sys
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
-from pathlib import Path
 from typing import Any
 
-# Add parent common directory to path
-COMMON_DIR = Path(__file__).parent.parent.parent / "common"
-sys.path.insert(0, str(COMMON_DIR))
+from common.feishu import FeishuApiError, FeishuClient
 
-from feishu.errors import BitableSyncError
-from feishu.client import FeishuClient
+# 飞书多维表格日期字段按「北京时间」(UTC+8) 当天 00:00 记毫秒时间戳。
+# 显式固定时区，避免依赖运行机器的本地时区——CI 跑在 UTC 上，若用 naive
+# datetime.timestamp() 会比本地（CST）晚 8 小时，导致日期整体偏移。
+_BEIJING_TZ = timezone(timedelta(hours=8))
 
 
 EXPENSE_TYPE_LABELS = {
@@ -75,7 +73,7 @@ EXPENSE_FIELD_NAMES = {
 }
 
 
-class BitableSyncError(RuntimeError):
+class BitableSyncError(FeishuApiError):
     """Raised when the Feishu Bitable sync fails."""
 
 
@@ -150,7 +148,6 @@ def sync_skill_result_to_bitable(
     transport_records: list[dict[str, Any]] = []
     expense_records: list[dict[str, Any]] = []
 
-    # Initialize FeishuClient only if not dry_run and using app_identity
     client: FeishuClient | None = None
     if not settings.dry_run and settings.mode == "app_identity":
         client = FeishuClient(
@@ -163,17 +160,17 @@ def sync_skill_result_to_bitable(
         if not isinstance(document, dict):
             continue
         attachment_payload: list[dict[str, Any]] | str = _build_attachment_text(document.get("source_file_name"))
-        if settings.include_attachments and settings.mode == "app_identity" and client:
+        if settings.include_attachments and settings.mode == "app_identity" and client is not None:
             source_name = str(document.get("source_file_name") or "")
             source_path = attachment_index.get(source_name)
             if source_path:
                 try:
-                    uploaded = client.bitable_upload_attachment(
-                        settings.app_token,
-                        source_path,
+                    uploaded = client.upload_attachment(
+                        app_token=settings.app_token,
+                        file_path=source_path,
                     )
-                    attachment_payload = [{"file_token": uploaded["file_token"], "name": uploaded["file_name"]}]
-                except BitableSyncError:
+                    attachment_payload = [{"file_token": uploaded["file_token"], "name": uploaded["name"]}]
+                except FeishuApiError:
                     attachment_payload = _build_attachment_text(source_name)
 
         invoice_type = str(document.get("document_type") or "unknown")
@@ -209,30 +206,30 @@ def sync_skill_result_to_bitable(
         },
     }
 
-    if settings.dry_run or settings.mode != "app_identity" or not client:
+    if settings.dry_run or settings.mode != "app_identity":
         if transport_records:
             summary["tables"]["transport"]["preview"] = transport_records[:3]
         if expense_records:
             summary["tables"]["expense"]["preview"] = expense_records[:3]
         return summary
 
-    if transport_records:
-        result = client.bitable_batch_create(
-            settings.app_token,
-            settings.transport_table_id,
-            transport_records,
+    if transport_records and client is not None:
+        written = client.bitable_batch_create(
+            app_token=settings.app_token,
+            table_id=settings.transport_table_id,
+            records=transport_records,
             batch_size=settings.batch_size,
-        )
-        summary["tables"]["transport"]["records_written"] = result.get("total_written", 0)
+        )["total"]
+        summary["tables"]["transport"]["records_written"] = written
 
-    if expense_records:
-        result = client.bitable_batch_create(
-            settings.app_token,
-            settings.expense_table_id,
-            expense_records,
+    if expense_records and client is not None:
+        written = client.bitable_batch_create(
+            app_token=settings.app_token,
+            table_id=settings.expense_table_id,
+            records=expense_records,
             batch_size=settings.batch_size,
-        )
-        summary["tables"]["expense"]["records_written"] = result.get("total_written", 0)
+        )["total"]
+        summary["tables"]["expense"]["records_written"] = written
 
     return summary
 
@@ -333,15 +330,12 @@ def _date_to_millis(value: Any) -> int | None:
     if isinstance(value, (int, float)):
         return int(value)
     try:
-        date_str = str(value)
-        # 纯日期按北京时间（UTC+8）零点解释——发票/行程日期是中国本地日期，
-        # 固定偏移确保毫秒值与运行环境时区无关（本机、UTC CI 结果一致）。
-        dt = datetime.fromisoformat(date_str)
-        if dt.tzinfo is None:
-            dt = datetime(year=dt.year, month=dt.month, day=dt.day, tzinfo=timezone(timedelta(hours=8)))
+        dt = datetime.fromisoformat(str(value))
     except ValueError:
         return None
-    return int(dt.timestamp() * 1000)
+    # naive 日期按北京时间解释；若输入已带时区则尊重原时区。
+    aware = dt if dt.tzinfo else dt.replace(tzinfo=_BEIJING_TZ)
+    return int(aware.timestamp() * 1000)
 
 
 def _join_review_reasons(reasons: Any) -> str:
@@ -429,7 +423,3 @@ def _drop_none(fields: dict[str, Any]) -> dict[str, Any]:
             continue
         cleaned[key] = value
     return cleaned
-
-
-def _chunk_records(records: list[dict[str, Any]], size: int) -> list[list[dict[str, Any]]]:
-    return [records[index : index + size] for index in range(0, len(records), size)]

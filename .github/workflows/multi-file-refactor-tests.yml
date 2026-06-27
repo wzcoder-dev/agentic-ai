@@ -4,9 +4,21 @@ on:
   push:
     paths:
       - 'claude-code/multi-file-refactor/**'
+      - '.github/workflows/multi-file-refactor-tests.yml'
   pull_request:
     paths:
       - 'claude-code/multi-file-refactor/**'
+      - '.github/workflows/multi-file-refactor-tests.yml'
+  workflow_dispatch:
+
+# 只读型工作流：跑测试 + 扫密钥，收窄默认 GITHUB_TOKEN 权限。
+permissions:
+  contents: read
+
+# 同一分支新推送取消旧运行（main 分支保留，避免误杀正式跑）。
+concurrency:
+  group: multi-file-refactor-tests-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
   test-financial-automation:
@@ -55,7 +67,7 @@ jobs:
         run: |
           cd claude-code/multi-file-refactor/CRM-Assistant
           source .venv/bin/activate
-          python scripts/crm_assistant.py run-merge-policy-tests
+          PYTHONPATH=.. python scripts/crm_assistant.py run-merge-policy-tests
 
   scan-secrets:
     name: Secret Scanning
