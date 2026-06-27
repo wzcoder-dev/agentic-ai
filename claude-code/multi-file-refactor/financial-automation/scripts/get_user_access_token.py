@@ -3,14 +3,9 @@ from __future__ import annotations
 import argparse
 import json
 import os
-import sys
 from pathlib import Path
 
-# Add parent common directory to path
-COMMON_DIR = Path(__file__).resolve().parents[2] / "common"
-sys.path.insert(0, str(COMMON_DIR))
-
-from feishu.http import post_json
+from common.feishu.http import post_json
 
 ROOT = Path(__file__).resolve().parents[1]
 TOKENS_PATH = ROOT / "runtime" / "oauth" / "feishu_user_token.json"

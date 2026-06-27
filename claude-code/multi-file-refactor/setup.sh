@@ -19,7 +19,7 @@ if [ -e "$DST/financial-automation" ] || [ -e "$DST/CRM-Assistant" ]; then
     exit 1
 fi
 
-echo "==> 1/4 快照 financial-automation + CRM-Assistant 到 $DST/"
+echo "==> 1/5 快照 financial-automation + CRM-Assistant 到 $DST/"
 mkdir -p "$DST/common"
 
 # 正确复制两个子目录（注意末尾没有/，这样复制的是目录本身）
@@ -30,15 +30,22 @@ for app in financial-automation CRM-Assistant; do
             "$app/" "$DST/$app/"
 done
 
-echo "==> 2/4 financial-automation：建 venv + 装依赖（国内镜像）"
+echo "==> 2/5 financial-automation：建 venv + 装依赖（国内镜像）"
 ( cd "$DST/financial-automation"
   python3 -m venv .venv
   ./.venv/bin/pip install -q -i "$MIRROR" -r requirements.txt )
 
-echo "==> 3/4 CRM-Assistant：建 venv（标准库，无三方依赖）"
+echo "==> 3/5 CRM-Assistant：建 venv（标准库，无三方依赖）"
 ( cd "$DST/CRM-Assistant" && python3 -m venv .venv )
 
-echo "==> 4/4 跑「重构前」绿色基线"
+echo "==> 4/5 注入 common/feishu 到两个 venv（.pth，业务代码里零 sys.path）"
+WORKSPACE_ROOT="$(git rev-parse --show-toplevel)/$DST"
+for app in financial-automation CRM-Assistant; do
+  SITE="$("$DST/$app/.venv/bin/python" -c 'import site;print(site.getsitepackages()[0])')"
+  echo "$WORKSPACE_ROOT" > "$SITE/feishu_common.pth"
+done
+
+echo "==> 5/5 跑「重构前」绿色基线"
 echo "-- 测试 financial-automation --"
 ( cd "$DST/financial-automation" && ./.venv/bin/python -m unittest tests.test_smoke )
 echo ""
