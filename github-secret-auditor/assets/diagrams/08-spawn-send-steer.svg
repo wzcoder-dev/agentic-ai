@@ -1,0 +1,57 @@
+<svg width="680" height="318" viewBox="0 0 680 318" role="img" xmlns="http://www.w3.org/2000/svg">
+<title>spawn / send / steer 消歧：两个动作，底层就俩 ACP 原语</title>
+<desc>看着有 spawn、send、steer、sessions_spawn、sessions_send、/acp spawn、/acp steer 一堆词,其实只有两个动作:开会话(第一次派活)和再投(后续/补漏)。每个动作有后台 Sessions API 名、飞书 /acp 命令名,底层都归到 ACP 的 session/new 与 session/prompt。sessions_send 与 /acp steer 是同一个动作。steer 一词两义:既是「再投」命令,也是名词「那段怎么干的指令内容」,与工单(说干什么)配对。</desc>
+<style>
+text{font-family:ui-sans-serif,system-ui,-apple-system,"PingFang SC","Hiragino Sans GB","Noto Sans CJK SC","Microsoft YaHei",sans-serif}
+.t{font-size:14px;font-weight:400;fill:#2C2C2A}
+.ts{font-size:12px;font-weight:400;fill:#5F5E5A}
+.th{font-size:14px;font-weight:500;fill:#2C2C2A}
+.tm{font-size:12.5px;font-weight:400;fill:#2C2C2A;font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace}
+.c-teal{fill:#E1F5EE;stroke:#0F6E56;stroke-width:.5}
+.c-teal .th,.c-teal .t{fill:#085041}.c-teal .ts{fill:#0F6E56}
+.c-coral{fill:#FAECE7;stroke:#993C1D;stroke-width:.5}
+.c-coral .th,.c-coral .t{fill:#712B13}.c-coral .ts{fill:#993C1D}
+.c-gray{fill:#F1EFE8;stroke:#888780;stroke-width:.5}
+.c-gray .th,.c-gray .t{fill:#2C2C2A}.c-gray .ts{fill:#5F5E5A}
+</style>
+<defs>
+<marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+<path d="M2 1L8 5L2 9" fill="none" stroke="#5F5E5A" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+</marker>
+</defs>
+<rect x="0" y="0" width="680" height="318" fill="#ffffff"/>
+<text class="th" x="340" y="24" text-anchor="middle">spawn / send / steer —— 两个动作，底层就俩 ACP 原语</text>
+<text class="ts" x="340" y="44" text-anchor="middle">一堆词,其实只有「开会话」和「再投」两个动作;每个有后台名 / 飞书名,底层都归到两个原语。</text>
+
+<text class="ts" x="240" y="66" text-anchor="middle">后台（Sessions API）</text>
+<text class="ts" x="385" y="66" text-anchor="middle">飞书（/acp）</text>
+<text class="ts" x="572" y="66" text-anchor="middle">底层 ACP 原语</text>
+
+<g class="c-teal">
+<rect x="20" y="78" width="140" height="56" rx="8"/>
+<text class="th" x="90" y="102" text-anchor="middle">① 开会话</text>
+<text class="ts" x="90" y="122" text-anchor="middle">第一次派活</text>
+</g>
+<text class="tm" x="240" y="111" text-anchor="middle">sessions_spawn</text>
+<text class="tm" x="385" y="111" text-anchor="middle">/acp spawn</text>
+<line x1="452" y1="106" x2="476" y2="106" stroke="#9b9a92" stroke-width="1.4" marker-end="url(#arrow)"/>
+<text class="tm" x="572" y="102" text-anchor="middle">session/new</text>
+<text class="tm" x="572" y="122" text-anchor="middle">+ session/prompt</text>
+
+<g class="c-coral">
+<rect x="20" y="146" width="140" height="56" rx="8"/>
+<text class="th" x="90" y="170" text-anchor="middle">② 再投</text>
+<text class="ts" x="90" y="190" text-anchor="middle">后续 / 补漏</text>
+</g>
+<text class="tm" x="240" y="179" text-anchor="middle">sessions_send</text>
+<text class="tm" x="385" y="179" text-anchor="middle">/acp steer</text>
+<line x1="452" y1="174" x2="476" y2="174" stroke="#9b9a92" stroke-width="1.4" marker-end="url(#arrow)"/>
+<text class="tm" x="572" y="179" text-anchor="middle">session/prompt（再一次）</text>
+
+<g class="c-gray">
+<rect x="20" y="222" width="640" height="86" rx="8"/>
+<text class="ts" x="36" y="246" text-anchor="start">读法：同一行 = 同一个动作，只是「后台名 / 飞书名 / 底层原语」三种叫法 —— sessions_send 和 /acp steer 就是同一下。</text>
+<text class="ts" x="36" y="270" text-anchor="start">送下去的内容 = 工单（JSON · 静态 · 说「干什么」）＋ steer（自然语言 · 动态 · 说「怎么干」）。</text>
+<text class="ts" x="36" y="294" text-anchor="start">注意 steer 一词两义：① 上面那个「再投」命令 /acp steer；② 名词「那段指令内容」，和工单配对。</text>
+</g>
+</svg>

@@ -1,0 +1,40 @@
+<svg width="680" height="300" viewBox="0 0 680 300" role="img" xmlns="http://www.w3.org/2000/svg">
+<title>别搞混：两个都缩写成 ACP</title>
+<desc>Agent Client Protocol(Zed)与 Agent Communication Protocol(IBM/BeeAI)只是撞了缩写 ACP,没有技术关系。前者是客户端↔编码 Agent、走 stdio 本机子进程、像 LSP、仍活跃,是本节所用;后者是 Agent↔Agent、走 HTTP/REST 网络、像 agent 版微服务、已并入 A2A 退场中,与本节无关。</desc>
+<style>
+text{font-family:ui-sans-serif,system-ui,-apple-system,"PingFang SC","Hiragino Sans GB","Noto Sans CJK SC","Microsoft YaHei",sans-serif}
+.t{font-size:14px;font-weight:400;fill:#2C2C2A}
+.ts{font-size:12px;font-weight:400;fill:#5F5E5A}
+.th{font-size:14px;font-weight:500;fill:#2C2C2A}
+.c-teal{fill:#E1F5EE;stroke:#0F6E56;stroke-width:.5}
+.c-teal .th,.c-teal .t{fill:#085041}.c-teal .ts{fill:#0F6E56}
+.c-gray{fill:#F1EFE8;stroke:#888780;stroke-width:.5}
+.c-gray .th,.c-gray .t{fill:#2C2C2A}.c-gray .ts{fill:#5F5E5A}
+</style>
+<rect x="0" y="0" width="680" height="300" fill="#ffffff"/>
+<text class="th" x="340" y="26" text-anchor="middle">别搞混：两个都缩写成 ACP，其实没关系</text>
+
+<g class="c-teal">
+<rect x="24" y="46" width="308" height="212" rx="8"/>
+<text class="th" x="42" y="74" text-anchor="start">✓ Agent Client Protocol</text>
+<text class="ts" x="42" y="102" text-anchor="start">谁：Zed</text>
+<text class="ts" x="42" y="128" text-anchor="start">干嘛：客户端 ↔ 编码 Agent</text>
+<text class="ts" x="42" y="154" text-anchor="start">传输：JSON-RPC / stdio（本机）</text>
+<text class="ts" x="42" y="180" text-anchor="start">像：LSP　·　现状：活跃</text>
+<text class="ts" x="42" y="206" text-anchor="start">agentclientprotocol.com</text>
+<text class="th" x="42" y="236" text-anchor="start">← 本节用的就是它</text>
+</g>
+
+<g class="c-gray">
+<rect x="348" y="46" width="308" height="212" rx="8"/>
+<text class="th" x="366" y="74" text-anchor="start">✗ Agent Communication Protocol</text>
+<text class="ts" x="366" y="102" text-anchor="start">谁：IBM / BeeAI</text>
+<text class="ts" x="366" y="128" text-anchor="start">干嘛：Agent ↔ Agent 互相协作</text>
+<text class="ts" x="366" y="154" text-anchor="start">传输：HTTP / REST（网络）</text>
+<text class="ts" x="366" y="180" text-anchor="start">像：agent 版微服务 API</text>
+<text class="ts" x="366" y="206" text-anchor="start">现状：已并入 A2A、退场中</text>
+<text class="th" x="366" y="236" text-anchor="start">← 与本节无关</text>
+</g>
+
+<text class="ts" x="340" y="284" text-anchor="middle">只撞了缩写『ACP』、无技术关系。那张「HTTP/WebSocket/gRPC/MQTT」的图画的是右边 —— 用图 1（左边）。</text>
+</svg>

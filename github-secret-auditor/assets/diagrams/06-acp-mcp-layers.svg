@@ -1,0 +1,60 @@
+<svg width="680" height="360" viewBox="0 0 680 360" role="img" xmlns="http://www.w3.org/2000/svg">
+<title>ACP 与 MCP：叠加，不是二选一</title>
+<desc>ACP(Zed)与 MCP(Anthropic)是互补、不同层的协议:ACP 在 Agent 上面,管客户端/宿主如何驱动 Agent(如 OpenClaw 经 ACP 驱动 Claude Code,JSON-RPC over stdio);MCP 在 Agent 下面,管 Agent 拿什么工具(文件、代码执行、检索、外部服务)。两者同时存在,叠成 Client—ACP→Agent—MCP→工具,而不是二选一。</desc>
+<style>
+text{font-family:ui-sans-serif,system-ui,-apple-system,"PingFang SC","Hiragino Sans GB","Noto Sans CJK SC","Microsoft YaHei",sans-serif}
+.t{font-size:14px;font-weight:400;fill:#2C2C2A}
+.ts{font-size:12px;font-weight:400;fill:#5F5E5A}
+.th{font-size:14px;font-weight:500;fill:#2C2C2A}
+.c-teal{fill:#E1F5EE;stroke:#0F6E56;stroke-width:.5}
+.c-teal .th,.c-teal .t{fill:#085041}.c-teal .ts{fill:#0F6E56}
+.c-purple{fill:#EEEDFE;stroke:#534AB7;stroke-width:.5}
+.c-purple .th,.c-purple .t{fill:#3C3489}.c-purple .ts{fill:#534AB7}
+.c-coral .th{fill:#993C1D}.c-coral .ts{fill:#993C1D}
+.c-green .th{fill:#3B6D11}.c-green .ts{fill:#3B6D11}
+.c-gray{fill:#F1EFE8;stroke:#888780;stroke-width:.5}
+.c-gray .th,.c-gray .t{fill:#2C2C2A}.c-gray .ts{fill:#5F5E5A}
+</style>
+<defs>
+<marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+<path d="M2 1L8 5L2 9" fill="none" stroke="#5F5E5A" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+</marker>
+</defs>
+<rect x="0" y="0" width="680" height="360" fill="#ffffff"/>
+<text class="th" x="340" y="26" text-anchor="middle">ACP 与 MCP：叠加，不是二选一</text>
+<text class="ts" x="340" y="46" text-anchor="middle">ACP 管『谁来驱动 Agent』，MCP 管『Agent 拿什么工具』</text>
+
+<g class="c-teal">
+<rect x="180" y="60" width="320" height="52" rx="8"/>
+<text class="th" x="340" y="84" text-anchor="middle">宿主 / 客户端（ACP Client）</text>
+<text class="ts" x="340" y="103" text-anchor="middle">OpenClaw（经 ACPX）· 编辑器</text>
+</g>
+<line x1="340" y1="114" x2="340" y2="150" stroke="#9b9a92" stroke-width="1.5" marker-end="url(#arrow)"/>
+<g class="c-coral">
+<text class="th" x="356" y="128" text-anchor="start">ACP</text>
+<text class="ts" x="356" y="144" text-anchor="start">驱动 Agent · JSON-RPC / stdio</text>
+</g>
+
+<g class="c-purple">
+<rect x="180" y="152" width="320" height="52" rx="8"/>
+<text class="th" x="340" y="176" text-anchor="middle">Agent（编码 Agent）</text>
+<text class="ts" x="340" y="195" text-anchor="middle">Claude Code · 自带运行时 / 模型</text>
+</g>
+<line x1="340" y1="206" x2="340" y2="242" stroke="#9b9a92" stroke-width="1.5" marker-end="url(#arrow)"/>
+<g class="c-green">
+<text class="th" x="356" y="220" text-anchor="start">MCP</text>
+<text class="ts" x="356" y="236" text-anchor="start">Agent 拿什么工具</text>
+</g>
+
+<g class="c-gray">
+<rect x="180" y="244" width="320" height="52" rx="8"/>
+<text class="th" x="340" y="268" text-anchor="middle">工具 / 数据（经 MCP）</text>
+<text class="ts" x="340" y="287" text-anchor="middle">文件 · 代码执行 · 检索 · 外部服务</text>
+</g>
+
+<g class="c-gray">
+<rect x="24" y="308" width="632" height="44" rx="8"/>
+<text class="ts" x="40" y="328" text-anchor="start">不是『用 MCP 还是 ACP』—— 是 Client —ACP→ Agent —MCP→ 工具，叠着跑。</text>
+<text class="ts" x="40" y="346" text-anchor="start">ACP = Zed（client ↔ agent）；MCP = Anthropic（agent ↔ tools）。</text>
+</g>
+</svg>

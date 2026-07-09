@@ -1,0 +1,17 @@
+__pycache__/
+*.py[cod]
+*.pyo
+
+.env
+.env.*
+!.env.example
+
+openclaw_security_console/state/
+openclaw_security_console/runtime/
+
+.venv/
+venv/
+env/
+
+.DS_Store
+Thumbs.db
